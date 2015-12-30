@@ -52,10 +52,25 @@ namespace Interface_Modules
             else
                 inactiveFlag = -999;
 
-            XElement xmlReturned = XElement.Load(ws_client.findContacts(SID, UserID, Last_Name, First_Name, Email, Access_Type, inactiveFlag));
+            //XmlDocument ReturnedXml = new XmlDocument();
+            //ReturnedXml.LoadXml(ws_client.findContacts(SID, UserID, Last_Name, First_Name, Email, Access_Type, inactiveFlag));
 
+            XDocument ReturnedXml = XDocument.Parse(ws_client.findContacts(SID, UserID, Last_Name, First_Name, Email, Access_Type, inactiveFlag));
+
+            //List<SDM_Contact> results = new List<SDM_Contact>();
             SDM_Contact results = new SDM_Contact();
-            results.Handle = xmlReturned.Descendants(UDS)
+            foreach (var contact in ReturnedXml.Descendants("UDSObject"))
+            {
+                results.Handle = contact.Element("Handle").Value;
+
+                foreach (var attribute in contact.Descendants("Attribute"))
+                {
+                    if (attribute.Element("AttrName").Value == "first_name")
+                        results.First_Name = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "last_name")
+                        results.Last_Name = attribute.Element("AttrValue").Value;
+                }
+            }
 
             return results;
         }
@@ -63,7 +78,9 @@ namespace Interface_Modules
 
     public class SDM_Contact
     {
-        public string Name { get; set; }
+        public string First_Name { get; set; }
+        public string Last_Name { get; set; }
+        public string Email { get; set; }
         public string Handle { get; set; }
     }
 }
