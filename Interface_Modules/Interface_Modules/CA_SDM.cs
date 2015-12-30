@@ -69,6 +69,12 @@ namespace Interface_Modules
                         results.First_Name = attribute.Element("AttrValue").Value;
                     if (attribute.Element("AttrName").Value == "last_name")
                         results.Last_Name = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "email_address")
+                        results.Email = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "userid")
+                        results.UserId = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "access_type")
+                        results.AccessType = Int16.Parse(attribute.Element("AttrValue").Value);
                 }
             }
 
@@ -82,5 +88,7 @@ namespace Interface_Modules
         public string Last_Name { get; set; }
         public string Email { get; set; }
         public string Handle { get; set; }
+        public string UserId { get; set; }
+        public int AccessType { get; set; }
     }
 }

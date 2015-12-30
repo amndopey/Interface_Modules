@@ -13,7 +13,7 @@ namespace Test_Console
     {
         static void Main(string[] args)
         {
-            int sid_token = CA_SDM.Get_SIDToken("or0210312", "Cj8mt1d!");
+            int sid_token = CA_SDM.Get_SIDToken();
             SDM_Contact test = CA_SDM.Find_Contact(sid_token, "or0210312");
 
             Console.WriteLine(test.Handle);
