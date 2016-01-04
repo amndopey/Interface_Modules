@@ -53,39 +53,52 @@ namespace Interface_Modules
             else
                 inactiveFlag = -999;
 
-            //XmlDocument ReturnedXml = new XmlDocument();
-            //ReturnedXml.LoadXml(ws_client.findContacts(SID, UserID, Last_Name, First_Name, Email, Access_Type, inactiveFlag));
-
             XDocument ReturnedXml = XDocument.Parse(ws_client.findContacts(SID, UserID, Last_Name, First_Name, Email, Access_Type, inactiveFlag));
 
-            //List<SDM_Contact> results = new List<SDM_Contact>();
             List<SDM_Contact> results = new List<SDM_Contact>();
+            
             foreach (var contact in ReturnedXml.Descendants("UDSObject"))
             {
                 SDM_Contact nextContact = new SDM_Contact();
 
-                nextContact.Handle = contact.Element("Handle").Value;
-
-                foreach (var attribute in contact.Descendants("Attribute"))
-                {
-                    if (attribute.Element("AttrName").Value == "first_name")
-                        nextContact.First_Name = attribute.Element("AttrValue").Value;
-                    if (attribute.Element("AttrName").Value == "last_name")
-                        nextContact.Last_Name = attribute.Element("AttrValue").Value;
-                    if (attribute.Element("AttrName").Value == "email_address")
-                        nextContact.Email = attribute.Element("AttrValue").Value;
-                    if (attribute.Element("AttrName").Value == "userid")
-                        nextContact.UserId = attribute.Element("AttrValue").Value;
-                    if (attribute.Element("AttrName").Value == "access_type")
-                        nextContact.AccessType = Int32.Parse(attribute.Element("AttrValue").Value);
-                    if (attribute.Element("AttrName").Value == "id")
-                        nextContact.Id = attribute.Element("AttrValue").Value;
-                }
-
-                results.Add(nextContact);
+                results.Add(Find_Contact_By_Handle(SID, contact.Element("Handle").Value));
             }
 
             return results;
+        }
+
+        private static SDM_Contact Find_Contact_By_Handle(int SID, string Handle)
+        {
+            SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
+            
+            SDM_Contact contact = new SDM_Contact();
+
+            contact.Handle = Handle;
+
+            var rawXml = ws_client.getContact(SID, Handle);
+
+            XDocument ReturnedXml = XDocument.Parse(rawXml);
+
+            foreach (var attributes in ReturnedXml.Descendants("UDSObject"))
+            {
+                foreach (var attribute in attributes.Descendants("Attribute"))
+                {
+                    if (attribute.Element("AttrName").Value == "first_name")
+                        contact.First_Name = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "last_name")
+                        contact.Last_Name = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "email_address")
+                        contact.Email = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "userid")
+                        contact.UserId = attribute.Element("AttrValue").Value;
+                    if (attribute.Element("AttrName").Value == "access_type")
+                        contact.AccessType = Int32.Parse(attribute.Element("AttrValue").Value);
+                    if (attribute.Element("AttrName").Value == "id")
+                        contact.Id = attribute.Element("AttrValue").Value;
+                }
+            }
+
+            return contact;
         }
 
         public static List<SDM_Ticket> Get_TicketHistory(int SID, string UserHandle)
@@ -252,7 +265,7 @@ namespace Interface_Modules
             return ticketId;
         }
 
-        public static void Get_ActivityLog(int SID, int TicketNumber)
+        public static List<SDM_Activity_Log> Get_ActivityLog(int SID, int TicketNumber)
         {
             SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
 
@@ -268,10 +281,30 @@ namespace Interface_Modules
 
             XDocument ReturnedXml = XDocument.Parse(rawXml);
 
-            
+            List<SDM_Activity_Log> activityLog = new List<SDM_Activity_Log>();
 
+            DateTime startTime = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+            foreach (var attributeSet in ReturnedXml.Descendants("Attributes"))
+            {
+                SDM_Activity_Log activity = new SDM_Activity_Log();
+                
+                foreach (var attribute in attributeSet.Descendants("Attribute"))
+                {
+                    if (attribute.Element("AttrName").Value == "action_desc")
+                        activity.ActionDesc = attribute.Element("AttrValue").Value.Trim();
+                    if (attribute.Element("AttrName").Value == "time_stamp")
+                        activity.TimeStamp = startTime.AddSeconds(Int32.Parse(attribute.Element("AttrValue").Value)).ToLocalTime();
+                    if (attribute.Element("AttrName").Value == "analyst")
+                        activity.Analyst = Find_Contact_By_Handle(SID, attribute.Element("AttrValue").Value).UserId;
+                    if (attribute.Element("AttrName").Value == "description")
+                        activity.Description = attribute.Element("AttrValue").Value.Trim();
+                }
 
+                activityLog.Add(activity);
+            }
+
+            return activityLog;
         }
 
     }
@@ -297,5 +330,13 @@ namespace Interface_Modules
         public string Type { get; set; }
         public int Id { get; set; }
         public int OpenDate { get; set; }
+    }
+
+    public class SDM_Activity_Log
+    {
+        public string ActionDesc { get; set; }
+        public DateTime TimeStamp { get; set; }
+        public string Analyst { get; set; }
+        public string Description { get; set; }
     }
 }

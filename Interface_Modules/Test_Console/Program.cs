@@ -20,9 +20,25 @@ namespace Test_Console
             Console.WriteLine("");
 
             Console.Write("Password: ");
-            string passWord = ReadPassword();
+            string password = ReadPassword();
 
-            int sid_token = CA_SDM.Get_SIDToken(userName, passWord);
+            int sid_token = CA_SDM.Get_SIDToken(userName, password);
+
+            List<SDM_Activity_Log> activityLog = CA_SDM.Get_ActivityLog(sid_token, 638977);
+
+            foreach (var activity in activityLog)
+            {
+                Console.WriteLine("Activity: {0}", activity.ActionDesc);
+                Console.WriteLine("Description: {0}", activity.Description);
+                Console.WriteLine("Analyst: {0}", activity.Analyst);
+                Console.WriteLine("Timestamp: {0}", activity.TimeStamp);
+                Console.WriteLine("-------------------------------");
+            }
+
+            Console.ReadLine();
+
+            return;
+
             List<SDM_Contact> test = CA_SDM.Find_Contact(sid_token, "or0210312");
 
             foreach (var contact in test)
@@ -56,7 +72,7 @@ namespace Test_Console
                 Console.WriteLine(person.Last_Name + ", " + person.First_Name);
             }
 
-            int testTicket = CA_SDM.Get_TicketId(sid_token, 757840);
+            
 
 
             Console.ReadLine();
