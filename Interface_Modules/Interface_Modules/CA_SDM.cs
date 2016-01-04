@@ -232,30 +232,49 @@ namespace Interface_Modules
             return members;
         }
 
-        public static int Get_TicketId(int SID, int TicketNumber)
+        private static int Get_TicketId(int SID, int TicketNumber)
         {
             SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
 
-            int ticketNumber = 0;
+            int ticketId = 0;
 
-            var rawXml = ws_client.doSelect(SID, "cr", "ref_num='757840'", -1, new string[] {"id"}); 
+            var rawXml = ws_client.doSelect(SID, "cr", "ref_num='" + TicketNumber + "'", -1, new string[] {"id"}); 
 
             XDocument ReturnedXml = XDocument.Parse(rawXml);
 
             foreach (var attribute in ReturnedXml.Descendants("Attribute"))
             {
                 if (attribute.Element("AttrName").Value == "id")
-                    ticketNumber = Int32.Parse(attribute.Element("AttrValue").Value);
+                    ticketId = Int32.Parse(attribute.Element("AttrValue").Value);
             }
 
             
-            return ticketNumber;
+            return ticketId;
         }
 
+        public static void Get_ActivityLog(int SID, int TicketNumber)
+        {
+            SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
 
+            int ticketID = Get_TicketId(SID, TicketNumber);
+
+            SDMWS.ListResult ticketHandleRequest = ws_client.getRelatedList(SID, "cr:" + ticketID, "act_log_all");
+
+            int listHandle = ticketHandleRequest.listHandle;
+
+            string[] myAttr = { "action_desc", "time_stamp", "analyst", "description" };
+
+            var rawXml = ws_client.getListValues(SID, listHandle, 0, -1, myAttr);
+
+            XDocument ReturnedXml = XDocument.Parse(rawXml);
+
+            
+
+
+
+        }
 
     }
-
 
     public class SDM_Contact
     {
