@@ -24,60 +24,65 @@ namespace Test_Console
 
             int sid_token = CA_SDM.Get_SIDToken(userName, password);
 
-            List<SDM_Activity_Log> activityLog = CA_SDM.Get_ActivityLog(sid_token, 638977);
+            //List<SDM_Activity_Log> activityLog = CA_SDM.Get_ActivityLog(sid_token, 638977);
 
-            foreach (var activity in activityLog)
-            {
-                Console.WriteLine("Activity: {0}", activity.ActionDesc);
-                Console.WriteLine("Description: {0}", activity.Description);
-                Console.WriteLine("Analyst: {0}", activity.Analyst);
-                Console.WriteLine("Timestamp: {0}", activity.TimeStamp);
-                Console.WriteLine("-------------------------------");
-            }
+            //foreach (var activity in activityLog)
+            //{
+            //    Console.WriteLine("Activity: {0}", activity.ActionDesc);
+            //    Console.WriteLine("Description: {0}", activity.Description);
+            //    Console.WriteLine("Analyst: {0}", activity.Analyst);
+            //    Console.WriteLine("Timestamp: {0}", activity.TimeStamp);
+            //    Console.WriteLine("-------------------------------");
+            //}
 
-            Console.ReadLine();
+            //List<SDM_Contact> test = CA_SDM.Find_Contact(sid_token, "or0210312");
 
-            return;
+            //foreach (var contact in test)
+            //{
+            //    Console.WriteLine("Handle: {0}", contact.Handle);
+            //    Console.WriteLine("First Name: {0}", contact.First_Name);
+            //    Console.WriteLine("Last Name: {0}", contact.Last_Name);
+            //    Console.WriteLine("---------------------");
 
-            List<SDM_Contact> test = CA_SDM.Find_Contact(sid_token, "or0210312");
+            //    List<SDM_Ticket> tickets = CA_SDM.Get_TicketHistory(sid_token, contact.Handle);
 
-            foreach (var contact in test)
-            {
-                Console.WriteLine("Handle: {0}", contact.Handle);
-                Console.WriteLine("First Name: {0}", contact.First_Name);
-                Console.WriteLine("Last Name: {0}", contact.Last_Name);
-                Console.WriteLine("---------------------");
-
-                List<SDM_Ticket> tickets = CA_SDM.Get_TicketHistory(sid_token, contact.Handle);
-
-                foreach (SDM_Ticket ticket in tickets)
-                {
-                    Console.WriteLine("Ticket Id: {0}", ticket.Id);
-                    Console.WriteLine("");
-                }
+            //    foreach (SDM_Ticket ticket in tickets)
+            //    {
+            //        Console.WriteLine("Ticket Id: {0}", ticket.Id);
+            //        Console.WriteLine("");
+            //    }
                 //Console.WriteLine("---------------------");
 
                 //string site = CA_SDM.Get_Site(sid_token, contact.UserId);
                 //Console.WriteLine("Site: {0}", site);
-            }
+            //}
             
             //-------------------------------------------------------------------------------------------------
             
-            SDM_Contact me = test[0];
+            //SDM_Contact me = test[0];
 
-            List<SDM_Contact> groupMembers = CA_SDM.Get_GroupMember(sid_token, "CSS T2 On Site " + CA_SDM.Get_Site(sid_token, "or0210312"));
+            //List<SDM_Contact> groupMembers = CA_SDM.Get_GroupMember(sid_token, "CSS T2 On Site " + CA_SDM.Get_Site(sid_token, "or0210312"));
 
-            foreach (SDM_Contact person in groupMembers)
-            {
-                Console.WriteLine(person.Last_Name + ", " + person.First_Name);
-            }
-
-            
+            //foreach (SDM_Contact person in groupMembers)
+            //{
+            //    Console.WriteLine(person.Last_Name + ", " + person.First_Name);
+            //}
 
 
+            //List<SDM_Contact> vipList = CA_SDM.Get_VIPContacts(sid_token);
+
+            //foreach (SDM_Contact vip in vipList)
+            //{
+            //    Console.WriteLine(vip.Last_Name + ", " + vip.First_Name);
+            //}
+
+            int test = CA_SDM.Create_Ticket(sid_token, "OR0210312", "", "R", "Assistance/Inquiry.Hardware.IOS", "CSS CC Mobile", "OP", "", "");
+
+
+            Console.WriteLine("--End of program--");
             Console.ReadLine();
 
-            CA_SDM.Remove_SIDToken(sid_token);
+            return;
         }
 
         public static string ReadPassword()

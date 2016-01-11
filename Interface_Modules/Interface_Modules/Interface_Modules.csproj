@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CA_SDM.cs" />
+    <Compile Include="Custom_Classes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Service References\SDMWS\Reference.cs">
       <AutoGen>True</AutoGen>

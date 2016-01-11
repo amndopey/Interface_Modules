@@ -42,7 +42,13 @@ namespace Interface_Modules
             ws_client.logout(SID);
         }
 
-        public static List<SDM_Contact> Find_Contact (int SID, string UserID = "", string Last_Name = "", string First_Name = "", string Email = "", string Access_Type = "", bool Only_Active = true)
+        public static List<SDM_Contact> Find_Contact (int SID,
+                                                      string UserID = "",
+                                                      string Last_Name = "",
+                                                      string First_Name = "",
+                                                      string Email = "",
+                                                      string Access_Type = "",
+                                                      bool Only_Active = true)
         {
             SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
 
@@ -73,9 +79,9 @@ namespace Interface_Modules
             
             SDM_Contact contact = new SDM_Contact();
 
-            contact.Handle = Handle;
+            contact.Handle = Handle.Replace("cnt:","");
 
-            var rawXml = ws_client.getContact(SID, Handle);
+            var rawXml = ws_client.getContact(SID, contact.Handle);
 
             XDocument ReturnedXml = XDocument.Parse(rawXml);
 
@@ -101,11 +107,16 @@ namespace Interface_Modules
             return contact;
         }
 
-        public static List<SDM_Ticket> Get_TicketHistory(int SID, string UserHandle)
+        public static List<SDM_Ticket> Get_TicketHistory(int SID, string UserId)
         {
             SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
 
-            UserHandle = UserHandle.TrimStart("cnt:".ToCharArray());
+            List<SDM_Contact> user = Find_Contact(SID, UserId);
+
+            if (user.Count() != 1)
+                throw new ArgumentException("UserId returns " + user.Count() + " users (Must be 1)");
+
+            string UserHandle = user[0].Handle.TrimStart("cnt:".ToCharArray());
 
             var TicketHistoryList = ws_client.doQuery(SID, "cr", "customer.id = U'" + UserHandle + "'");
 
@@ -307,36 +318,140 @@ namespace Interface_Modules
             return activityLog;
         }
 
+        public static List<SDM_Contact> Get_VIPContacts(int SID)
+        {
+            SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
+
+            var rawXml = ws_client.doSelect(SID, "special_handling", @"description LIKE '%VIP'", -1, new string[] { "persistent_id" });
+
+            XDocument ReturnedXml = XDocument.Parse(rawXml);
+
+            string persistentId = "";
+
+            foreach (var attribute in ReturnedXml.Descendants("Attribute"))
+            {
+                if (attribute.Element("AttrName").Value == "persistent_id")
+                    persistentId = attribute.Element("AttrValue").Value;
+            }
+            
+            SDMWS.ListResult getList = ws_client.getRelatedList(SID, persistentId, "cnthandling_list");
+
+            int listHandle = getList.listHandle;
+
+            rawXml = ws_client.getListValues(SID, listHandle, 1, -1, new string[] { "contact" });
+
+            ReturnedXml = XDocument.Parse(rawXml);
+
+            List<SDM_Contact> vipList = new List<SDM_Contact>();
+
+            foreach (var attributeSet in ReturnedXml.Descendants("Attributes"))
+            {
+                SDM_Contact nextVip = new SDM_Contact();
+
+                foreach (var attribute in attributeSet.Descendants("Attribute"))
+                {
+                    if (attribute.Element("AttrName").Value == "contact")
+                    {
+                        string contactHandle = attribute.Element("AttrValue").Value.Trim();
+
+                        nextVip = Find_Contact_By_Handle(SID, contactHandle);
+                    }
+                
+                
+                }
+
+                vipList.Add(nextVip);
+            }
+
+            return vipList;
+        }
+
+        public static int Create_Ticket(int SID,
+                                        string CreatorUserId,
+                                        string AffectedUserId,
+                                        string TicketType,
+                                        string RequestArea,
+                                        string Group,
+                                        string Status = "OP",
+                                        string RequesterUserID = "",
+                                        string AssigneeUserID = "",
+                                        int Priority = 0,
+                                        int Severity = 0,
+                                        int Urgency = 0,
+                                        int Impact = 0,
+                                        string Summary = "",
+                                        string Description = "")
+        {
+            SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
+
+            //Check that user comes back with one contact
+            List<SDM_Contact> tempUserCheck = Find_Contact(SID, CreatorUserId);
+
+            if (tempUserCheck.Count() != 1)
+                throw new ArgumentException("UserId returns " + tempUserCheck.Count() + " users (Must be 1)");
+
+            SDM_Contact user = tempUserCheck[0];
+
+            //Check that Affected User comes back with only one contact
+            if (!String.IsNullOrEmpty(AffectedUserId))
+            {
+                tempUserCheck = Find_Contact(SID, AffectedUserId);
+
+                if (tempUserCheck.Count() != 1)
+                    throw new ArgumentException("AffectedUserId returns " + tempUserCheck.Count() + " users (Must be 1)");
+
+                SDM_Contact affectedUser = tempUserCheck[0];
+            }
+
+            //Verify ticket type is valid
+            if (TicketType.ToUpper() != "R" && TicketType.ToUpper() != "I")
+                throw new ArgumentException("Ticket Type must be either 'I' for Incident or 'R' for Request");
+
+            //Verify Request Area
+            var rawXml = ws_client.doSelect(SID, "pcat", "sym = '" + RequestArea + "'", 250, new string[] { "sym" });
+
+            XDocument ReturnedXml = XDocument.Parse(rawXml);
+
+            if (ReturnedXml.Descendants("UDSObjectList").Elements().Count() == 0)
+                throw new ArgumentException("Invalid Request Area");
+            
+            //Verify group
+            rawXml = ws_client.doSelect(SID, "cnt", "last_name = '" + Group + "' AND type = 2308", 250, new string[] { "persistent_id" });
+
+            ReturnedXml = XDocument.Parse(rawXml);
+
+            if (ReturnedXml.Descendants("UDSObjectList").Elements().Count() == 0)
+                throw new ArgumentException("Invalid Group");
+
+            //Verify Status
+            if (Status.ToUpper() != "OP" && Status.ToUpper() != "CL")
+                throw new ArgumentException("Ticket status must be 'OP' or 'CL'");
+
+            //Verify proper priority
+            if (Priority < 0 && Priority > 5)
+                throw new ArgumentException("Priority must be between 0 and 5");
+
+            //Verify proper severity
+            if (Severity < 1 && Severity > 5)
+                throw new ArgumentException("Severity must be between 1 and 5");
+
+            //Verify proper urgency
+            if (Urgency < 0 && Urgency > 4)
+                throw new ArgumentException("Urgency must be between 0 and 4");
+
+            //Verify proper impact
+            if (Impact < 0 && Impact > 5)
+                throw new ArgumentException("Severity must be between 0 and 5");
+
+            // ------------------Create ticket portion --------------------
+
+
+
+
+
+
+            return 0;
+        }
     }
 
-    public class SDM_Contact
-    {
-        public string First_Name { get; set; }
-        public string Last_Name { get; set; }
-        public string Email { get; set; }
-        public string Handle { get; set; }
-        public string UserId { get; set; }
-        public string Id { get; set; }
-        public int AccessType { get; set; }
-    }
-
-    public class SDM_Ticket
-    {
-        public string Handle { get; set; }
-        public string Assignee { get; set; }
-        public string Status { get; set; }
-        public string Summary { get; set; }
-        public string Description { get; set; }
-        public string Type { get; set; }
-        public int Id { get; set; }
-        public int OpenDate { get; set; }
-    }
-
-    public class SDM_Activity_Log
-    {
-        public string ActionDesc { get; set; }
-        public DateTime TimeStamp { get; set; }
-        public string Analyst { get; set; }
-        public string Description { get; set; }
-    }
 }
