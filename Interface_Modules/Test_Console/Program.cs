@@ -76,7 +76,14 @@ namespace Test_Console
             //    Console.WriteLine(vip.Last_Name + ", " + vip.First_Name);
             //}
 
-            int test = CA_SDM.Create_Ticket(sid_token, "OR0210312", "", "R", "Assistance/Inquiry.Hardware.IOS", "CSS CC Mobile", "OP", "", "");
+            int test = CA_SDM.Create_Ticket(sid_token,
+                                            "Or0210312",
+                                            "or0210312",
+                                            "R",
+                                            "Assistance/Inquiry.Hardware.IOS",
+                                            "CSS CC Mobile",
+                                            Summary: "This is a test ticket",
+                                            Description: "This is a test ticket created by the class library and will be closed automatically");
 
 
             Console.WriteLine("--End of program--");

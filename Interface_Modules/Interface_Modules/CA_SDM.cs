@@ -19,6 +19,10 @@ namespace Interface_Modules
             bhb.Security.Transport.ClientCredentialType = HttpClientCredentialType.None;
             bhb.Security.Message.ClientCredentialType = BasicHttpMessageCredentialType.UserName;
             bhb.MaxReceivedMessageSize = 2147483647;
+            bhb.MaxBufferSize = 2147483647;
+            bhb.MaxBufferPoolSize = 2147483647;
+            bhb.ReaderQuotas.MaxArrayLength = 2147483647;
+            bhb.ReaderQuotas.MaxStringContentLength = 2147483647;
 
             EndpointAddress endpointAddress = new EndpointAddress("https://servicedesk.dhsoha.state.or.us/axis/services/USD_R11_WebService");
             SDMWS.USD_WebServiceSoapClient WS_Client = new SDMWS.USD_WebServiceSoapClient(bhb, endpointAddress);
@@ -377,80 +381,135 @@ namespace Interface_Modules
                                         string AssigneeUserID = "",
                                         int Priority = 0,
                                         int Severity = 0,
-                                        int Urgency = 0,
-                                        int Impact = 0,
+                                        int Urgency = 2,
+                                        int Impact = 1,
                                         string Summary = "",
                                         string Description = "")
         {
             SDMWS.USD_WebServiceSoapClient ws_client = WebServiceSoapClient();
 
+            Dictionary<string, string> attrValues = new Dictionary<string, string>();
+
             //Check that user comes back with one contact
-            List<SDM_Contact> tempUserCheck = Find_Contact(SID, CreatorUserId);
+            SDM_Contact creatorUser = new SDM_Contact();            
+            if (!String.IsNullOrEmpty(CreatorUserId))
+            {
 
-            if (tempUserCheck.Count() != 1)
-                throw new ArgumentException("UserId returns " + tempUserCheck.Count() + " users (Must be 1)");
+                List<SDM_Contact> tempUserCheck = Find_Contact(SID, CreatorUserId);
 
-            SDM_Contact user = tempUserCheck[0];
+                if (tempUserCheck.Count() != 1)
+                    throw new ArgumentException("UserId returns " + tempUserCheck.Count() + " users (Must be 1)");
+
+                creatorUser = tempUserCheck[0];
+            }
+            else
+                throw new ArgumentException("Invalid creator user ID given");
 
             //Check that Affected User comes back with only one contact
+
             if (!String.IsNullOrEmpty(AffectedUserId))
             {
-                tempUserCheck = Find_Contact(SID, AffectedUserId);
+                List<SDM_Contact> tempUserCheck = Find_Contact(SID, AffectedUserId);
 
                 if (tempUserCheck.Count() != 1)
                     throw new ArgumentException("AffectedUserId returns " + tempUserCheck.Count() + " users (Must be 1)");
 
-                SDM_Contact affectedUser = tempUserCheck[0];
+                attrValues.Add("customer", tempUserCheck[0].Handle);
+            }
+            else
+                throw new ArgumentException("No valid affected user given");
+
+            //Verify Requester comes back with one contact
+            if (!String.IsNullOrEmpty(RequesterUserID))
+            {
+                List<SDM_Contact> tempUserCheck = Find_Contact(SID, RequesterUserID);
+
+                if (tempUserCheck.Count() != 1)
+                    throw new ArgumentException("RequesterUserId returns " + tempUserCheck.Count() + " users (Must be 1)");
+
+                attrValues.Add("requested_by", tempUserCheck[0].Handle);
             }
 
-            //Verify ticket type is valid
+            
+            //Verify ticket type is valid and create name-value string
             if (TicketType.ToUpper() != "R" && TicketType.ToUpper() != "I")
                 throw new ArgumentException("Ticket Type must be either 'I' for Incident or 'R' for Request");
+            else
+                attrValues.Add("type", TicketType.ToUpper());
 
-            //Verify Request Area
+            //Verify Request Area and create name-value string
             var rawXml = ws_client.doSelect(SID, "pcat", "sym = '" + RequestArea + "'", 250, new string[] { "sym" });
-
             XDocument ReturnedXml = XDocument.Parse(rawXml);
 
             if (ReturnedXml.Descendants("UDSObjectList").Elements().Count() == 0)
                 throw new ArgumentException("Invalid Request Area");
-            
+            else
+            {
+                foreach (var attribute in ReturnedXml.Descendants("UDSObject"))
+                {
+                    attrValues.Add("category", attribute.Element("Handle").Value);
+                }
+            }
+
             //Verify group
             rawXml = ws_client.doSelect(SID, "cnt", "last_name = '" + Group + "' AND type = 2308", 250, new string[] { "persistent_id" });
-
             ReturnedXml = XDocument.Parse(rawXml);
 
             if (ReturnedXml.Descendants("UDSObjectList").Elements().Count() == 0)
                 throw new ArgumentException("Invalid Group");
+            else
+            {
+                foreach (var attribute in ReturnedXml.Descendants("UDSObject"))
+                {
+                    attrValues.Add("group", attribute.Element("Handle").Value);
+                }
+            }
 
             //Verify Status
             if (Status.ToUpper() != "OP" && Status.ToUpper() != "CL")
                 throw new ArgumentException("Ticket status must be 'OP' or 'CL'");
+            else
+                attrValues.Add("status", Status.ToUpper());
 
             //Verify proper priority
-            if (Priority < 0 && Priority > 5)
+            if (Priority < 0 || Priority > 5)
                 throw new ArgumentException("Priority must be between 0 and 5");
+            else
+                attrValues.Add("priority", Priority.ToString());
 
             //Verify proper severity
-            if (Severity < 1 && Severity > 5)
-                throw new ArgumentException("Severity must be between 1 and 5");
+            if (Severity < 0 || Severity > 5)
+                throw new ArgumentException("Severity must be between 1 and 5 (or 0 for blank)");
+            else if (Severity == 0)
+                attrValues.Add("severity", "");
+            else
+                attrValues.Add("severity", Severity.ToString());
 
             //Verify proper urgency
-            if (Urgency < 0 && Urgency > 4)
+            if (Urgency < 0 || Urgency > 4)
                 throw new ArgumentException("Urgency must be between 0 and 4");
+            else
+                attrValues.Add("urgency", Urgency.ToString());
 
             //Verify proper impact
-            if (Impact < 0 && Impact > 5)
+            if (Impact < 0 || Impact > 5)
                 throw new ArgumentException("Severity must be between 0 and 5");
+            else
+                attrValues.Add("impact", Impact.ToString());
 
             // ------------------Create ticket portion --------------------
 
+            String csv = String.Join(
+                ",",
+                attrValues.Select(d => d.Key + "," + d.Value));
 
+            string requestHandle = "";
+            string requestNumber = "";
 
+            rawXml = ws_client.createRequest(SID, creatorUser.Handle, csv, new string[0], "", new string[] { "persistent_id" }, ref requestHandle, ref requestNumber);
+            ReturnedXml = XDocument.Parse(rawXml);
 
-
-
-            return 0;
+            return Int32.Parse(requestNumber);
         }
     }
 
